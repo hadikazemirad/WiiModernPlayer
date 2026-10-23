@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>Wii Modern Media Player</name>
+  <coder>Wii Modern Media Player Project</coder>
+  <version>1.7.0</version>
+  <release_date>20261022</release_date>
+  <short_description>Modern Wii media player based on WiiMC</short_description>
+  <long_description>WiiMC playback and DVDNav engine with WiiMC+ V14-inspired clickable playback controls and DVD menu navigation.</long_description>
+  <no_ios_reload />
+</app>
