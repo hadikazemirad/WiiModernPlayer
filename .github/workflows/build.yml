@@ -1,0 +1,109 @@
+name: Wii Modern Media Player Build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/extremscorner/libogc2:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Verify project and patch set
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Checking required project files"
+          test -f Makefile
+          test -f meta.xml
+          test -f icon.png
+          test -f LICENSE
+          test -f README.md
+          test -f README_FA.md
+          test -f tools/apply_wiimc_patch.py
+          test -f tools/build_upstream.sh
+          echo "Checking metadata and confirming the experimental bar is absent"
+          grep -Fq '<name>Wii Modern Media Player</name>' meta.xml
+          grep -Fq '<no_ios_reload />' meta.xml
+          grep -Fq 'NormalizeDVDComponent' tools/apply_wiimc_patch.py
+          grep -Fq 'MP_CMD_DVDNAV_MOUSECLICK' tools/apply_wiimc_patch.py
+          grep -Fq 'python3 "$ROOT/tools/apply_wiimc_patch.py"' tools/build_upstream.sh
+          PROJECT_VERSION="$(sed -n 's:.*<version>\([^<]*\)</version>.*:\1:p' meta.xml | head -n1)"
+          test -n "$PROJECT_VERSION"
+          echo "PROJECT_VERSION=$PROJECT_VERSION" >> "$GITHUB_ENV"
+          echo "Checking patch script syntax"
+          python3 -m py_compile tools/apply_wiimc_patch.py
+          python3 - <<'PY'
+          import struct
+          from pathlib import Path
+          b=Path('icon.png').read_bytes()
+          assert b[:8] == b'\x89PNG\r\n\x1a\n'
+          assert b[12:16] == b'IHDR'
+          w,h=struct.unpack('>II',b[16:24])
+          assert (w,h)==(128,48), (w,h)
+          print('icon.png OK:',w,h)
+          PY
+      - name: Verify libogc2 toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${DEVKITPRO:?}"
+          : "${DEVKITPPC:?}"
+          export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$DEVKITPRO/portlibs/ppc/bin:$DEVKITPRO/portlibs/wii/bin:$PATH"
+          test -x "$DEVKITPPC/bin/powerpc-eabi-gcc"
+          test -x "$DEVKITPPC/bin/powerpc-eabi-g++"
+          test -x "$DEVKITPRO/tools/bin/elf2dol"
+          test -f "$DEVKITPRO/libogc2/wii_rules"
+          command -v make
+          command -v git
+          command -v python3
+          command -v powerpc-eabi-gcc
+          command -v powerpc-eabi-g++
+          command -v elf2dol
+      - name: Prepare
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x tools/build_upstream.sh tools/apply_wiimc_patch.py
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$DEVKITPRO/portlibs/ppc/bin:$DEVKITPRO/portlibs/wii/bin:$PATH"
+          make -j2
+      - name: Verify generated source and package
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f upstream-wiimc/source/input.cpp
+          test -f upstream-wiimc/source/video.cpp
+          ! grep -Fq 'WMPV14_DrawBar();' upstream-wiimc/source/video.cpp
+          ! grep -Fq 'WMPV14_HandleClick' upstream-wiimc/source/input.cpp
+          grep -Fq 'MP_CMD_DVDNAV_MOUSECLICK' upstream-wiimc/source/input.cpp
+          grep -Fq 'MP_CMD_DVDNAV_SELECT' upstream-wiimc/source/input.cpp
+          grep -Fq 'MP_CMD_DVDNAV_UP' upstream-wiimc/source/input.cpp
+          grep -Fq 'MP_CMD_DVDNAV_DOWN' upstream-wiimc/source/input.cpp
+          grep -Fq 'MP_CMD_DVDNAV_LEFT' upstream-wiimc/source/input.cpp
+          grep -Fq 'MP_CMD_DVDNAV_RIGHT' upstream-wiimc/source/input.cpp
+          DIST=dist/apps/WiiModernMediaPlayer
+          test -s "$DIST/boot.dol"
+          test -s "$DIST/meta.xml"
+          test -s "$DIST/icon.png"
+          PROJECT_VERSION="$(sed -n 's:.*<version>\([^<]*\)</version>.*:\1:p' meta.xml | head -n1)"
+          BUILT_VERSION="$(sed -n 's:.*<version>\([^<]*\)</version>.*:\1:p' "$DIST/meta.xml" | head -n1)"
+          test "$BUILT_VERSION" = "$PROJECT_VERSION"
+          mkdir -p artifact
+          cp -a "$DIST" artifact/WiiModernMediaPlayer
+          cd artifact
+          zip -r "../WiiModernMediaPlayer-v${PROJECT_VERSION}-Wii.zip" WiiModernMediaPlayer >/dev/null
+          cd ..
+          unzip -t "WiiModernMediaPlayer-v${PROJECT_VERSION}-Wii.zip"
+      - name: Upload Wii package
+        uses: actions/upload-artifact@v4
+        with:
+          name: WiiModernMediaPlayer-v${{ env.PROJECT_VERSION }}-Wii
+          path: WiiModernMediaPlayer-v${{ env.PROJECT_VERSION }}-Wii.zip
+          if-no-files-found: error
