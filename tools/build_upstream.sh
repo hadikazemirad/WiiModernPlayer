@@ -31,6 +31,33 @@ python3 "$ROOT/tools/apply_wiimc_patch.py"
 find "$UPSTREAM/source/mplayer" -type f -name '*.d' -delete
 
 cd "$UPSTREAM"
+
+# The libogc2 toolchain is newer than the legacy WiiMC-SS build environment.
+# The old project enables optional NTFS/EXT2 libraries and PowerPC flags that
+# are not present/accepted by the current container. Keep FAT/SD/USB/DVD support
+# while disabling only those legacy optional pieces.
+python3 - <<'PY'
+from pathlib import Path
+
+root = Path('.')
+makefile = root / 'Makefile'
+s = makefile.read_text(encoding='utf-8')
+s2 = s.replace('ENABLE_NTFS                   = 1', 'ENABLE_NTFS                   = 0')
+if s2 == s:
+    raise SystemExit('ERROR: ENABLE_NTFS anchor not found in upstream Makefile')
+makefile.write_text(s2, encoding='utf-8')
+
+# GCC 15-era devkitPPC rejects the obsolete -mpaired option. -mstring is also
+# obsolete and only generates a warning, so remove both from the generated
+# MPlayer configuration/build files when present.
+for p in (root / 'source' / 'mplayer' / 'config.mak', root / 'source' / 'mplayer' / 'Makefile'):
+    if p.exists():
+        t = p.read_text(encoding='utf-8')
+        t2 = t.replace('-mpaired', '').replace('-mstring', '')
+        if t2 != t:
+            p.write_text(t2, encoding='utf-8')
+PY
+
 # libogc2 no longer exposes MAXPATHLEN through WiiMC's legacy include chain.
 # Keep the upstream source untouched except for the build-compatible definition.
 if ! grep -q '#define MAXPATHLEN 1024' source/filebrowser.h; then
