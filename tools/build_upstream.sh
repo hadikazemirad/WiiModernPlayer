@@ -64,6 +64,12 @@ mplayer = root / 'source' / 'mplayer' / 'mplayer.c'
 t = mplayer.read_text(encoding='utf-8')
 t2 = t.replace('char fileplaying[MAXPATHLEN];', '#ifndef MAXPATHLEN\n#define MAXPATHLEN 1024\n#endif\n\nchar fileplaying[MAXPATHLEN];')
 t2 = t2.replace('end_film_error=stream_error(mpctx->stream);', 'end_film_error=mpctx->stream->error;')
+# A DVD must never inherit the normal-video loop setting. The existing WiiMC
+# setting calls wiiSetLoopOn() for AUTOPLAY_LOOP; make that function explicitly
+# force loop=off whenever the active MPlayer filename is a DVD/DVDNav stream.
+loop_anchor = '''void wiiSetLoopOn()\n{\n\tif(mpctx->sh_video)'''
+loop_replacement = '''void wiiSetLoopOn()\n{\n\tif(filename && strncmp(filename, "dvd", 3) == 0)\n\t{\n\t\tm_config_set_option(mconfig, "loop", "-1");\n\t\treturn;\n\t}\n\tif(mpctx->sh_video)'''
+t2 = t2.replace(loop_anchor, loop_replacement, 1)
 if t2 == t:
     raise SystemExit('ERROR: mplayer.c compatibility anchors not found')
 mplayer.write_text(t2, encoding='utf-8')
