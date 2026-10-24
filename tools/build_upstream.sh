@@ -15,6 +15,7 @@ test -n "$PROJECT_VERSION" || { echo "ERROR: project version missing from meta.x
 rm -rf "$UPSTREAM" "$ROOT/dist"
 git clone --depth 1 --branch "$UPSTREAM_TAG" "$UPSTREAM_URL" "$UPSTREAM"
 python3 "$ROOT/tools/apply_wiimc_patch.py"
+python3 "$ROOT/tools/prepare_upstream_compat.py"
 find "$UPSTREAM/source/mplayer" -type f -name '*.d' -delete
 cd "$UPSTREAM"
 python3 - <<'PY'
@@ -28,7 +29,7 @@ for p in (root/'source/mplayer/config.mak',root/'source/mplayer/Makefile'):
         t=p.read_text(encoding='utf-8'); t2=t.replace('-mpaired','').replace('-mstring','')
         if t2!=t: p.write_text(t2,encoding='utf-8')
 mplayer=root/'source/mplayer/mplayer.c'; t=mplayer.read_text(encoding='utf-8'); t2=t.replace('char fileplaying[MAXPATHLEN];','#ifndef MAXPATHLEN\n#define MAXPATHLEN 1024\n#endif\n\nchar fileplaying[MAXPATHLEN];').replace('stream_error(mpctx->stream)','mpctx->stream->error')
-t2=t2.replace('''void wiiSetLoopOn()\n{\n\tif(mpctx->sh_video)''','''void wiiSetLoopOn()\n{\n\tif(filename && strncmp(filename, "dvd", 3) == 0)\n\t{\n\t\tm_config_set_option(mconfig, "loop", "-1");\n\t\treturn;\n\t}\n\tif(mpctx->sh_video)''',1)
+t2=t2.replace('''void wiiSetLoopOn()\n{\n\tif(mpctx->sh_video)''','''void wiiSetLoopOn()\n{\n\tif(filename && strncmp(filename, "dvd", 3) == 0)\n\t\treturn;\n\tif(mpctx->sh_video)''',1)
 if t2==t: raise SystemExit('ERROR: mplayer.c anchors not found')
 mplayer.write_text(t2,encoding='utf-8')
 fileop=root/'source/fileop.cpp'; t=fileop.read_text(encoding='utf-8'); t2=t.replace('strstr(path, "../") > 0','strstr(path, "../") != NULL').replace('stricmp(','strcasecmp(')
