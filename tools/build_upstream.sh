@@ -6,13 +6,9 @@ META="$ROOT/meta.xml"
 : "${DEVKITPRO:?ERROR: DEVKITPRO is not set}"
 : "${DEVKITPPC:?ERROR: DEVKITPPC is not set}"
 
-# The upstream Makefile uses PORTLIBS to locate FreeType and other portlibs.
-# libogc2 containers do not always export this legacy variable automatically.
 export PORTLIBS="${PORTLIBS:-$DEVKITPRO/portlibs/ppc}"
 export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$PORTLIBS/bin:$DEVKITPRO/portlibs/wii/bin:$PATH"
 
-# Build against the maintained WiiMC-SS fork, pinned to the release used for
-# playback-quality improvements. Do not silently fall back to the older dborth tree.
 UPSTREAM_URL="https://github.com/SuperrSonic/WiiMC-SSLC.git"
 UPSTREAM_TAG="v3.0.0-2024"
 UPSTREAM="$ROOT/upstream-wiimc"
@@ -25,17 +21,10 @@ rm -rf "$UPSTREAM" "$ROOT/dist"
 git clone --depth 1 --branch "$UPSTREAM_TAG" "$UPSTREAM_URL" "$UPSTREAM"
 python3 "$ROOT/tools/apply_wiimc_patch.py"
 
-# WiiMC-SS ships an old generated dependency file which GNU make on the current
-# toolchain parses as a malformed rule. Dependency files are regenerated during
-# compilation, so remove only those generated *.d files before building.
 find "$UPSTREAM/source/mplayer" -type f -name '*.d' -delete
 
 cd "$UPSTREAM"
 
-# The libogc2 toolchain is newer than the legacy WiiMC-SS build environment.
-# The old project enables optional NTFS/EXT2 libraries and PowerPC flags that
-# are not present/accepted by the current container. Keep FAT/SD/USB/DVD support
-# while disabling only those legacy optional pieces.
 python3 - <<'PY'
 from pathlib import Path
 
@@ -48,9 +37,6 @@ if s2 == s:
     raise SystemExit('ERROR: optional filesystem anchors not found in upstream Makefile')
 makefile.write_text(s2, encoding='utf-8')
 
-# GCC 15-era devkitPPC rejects the obsolete -mpaired option. -mstring is also
-# obsolete and only generates a warning, so remove both from the generated
-# MPlayer configuration/build files when present.
 for p in (root / 'source' / 'mplayer' / 'config.mak', root / 'source' / 'mplayer' / 'Makefile'):
     if p.exists():
         t = p.read_text(encoding='utf-8')
@@ -58,25 +44,32 @@ for p in (root / 'source' / 'mplayer' / 'config.mak', root / 'source' / 'mplayer
         if t2 != t:
             p.write_text(t2, encoding='utf-8')
 
-# libogc2's stream API exposes the GEKKO stream error state directly rather than
-# the old helper used by this WiiMC-SS snapshot.
 mplayer = root / 'source' / 'mplayer' / 'mplayer.c'
 t = mplayer.read_text(encoding='utf-8')
 t2 = t.replace('char fileplaying[MAXPATHLEN];', '#ifndef MAXPATHLEN\n#define MAXPATHLEN 1024\n#endif\n\nchar fileplaying[MAXPATHLEN];')
-t2 = t2.replace('end_film_error=stream_error(mpctx->stream);', 'end_film_error=mpctx->stream->error;')
-# A DVD must never inherit the normal-video loop setting. The existing WiiMC
-# setting calls wiiSetLoopOn() for AUTOPLAY_LOOP; make that function explicitly
-# force loop=off whenever the active MPlayer filename is a DVD/DVDNav stream.
+t2 = t2.replace('stream_error(mpctx->stream)', 'mpctx->stream->error')
 loop_anchor = '''void wiiSetLoopOn()\n{\n\tif(mpctx->sh_video)'''
 loop_replacement = '''void wiiSetLoopOn()\n{\n\tif(filename && strncmp(filename, "dvd", 3) == 0)\n\t{\n\t\tm_config_set_option(mconfig, "loop", "-1");\n\t\treturn;\n\t}\n\tif(mpctx->sh_video)'''
 t2 = t2.replace(loop_anchor, loop_replacement, 1)
 if t2 == t:
     raise SystemExit('ERROR: mplayer.c compatibility anchors not found')
 mplayer.write_text(t2, encoding='utf-8')
+
+fileop = root / 'source' / 'fileop.cpp'
+t = fileop.read_text(encoding='utf-8')
+t2 = t.replace('strstr(path, "../") > 0', 'strstr(path, "../") != NULL')
+t2 = t2.replace('stricmp(', 'strcasecmp(')
+if t2 == t:
+    raise SystemExit('ERROR: fileop.cpp compatibility anchors not found')
+fileop.write_text(t2, encoding='utf-8')
+
+for p in (root / 'source' / 'fileop.cpp', root / 'source' / 'filebrowser.cpp'):
+    t = p.read_text(encoding='utf-8')
+    if '#include <strings.h>' not in t:
+        t = t.replace('#include <string.h>', '#include <string.h>\n#include <strings.h>', 1)
+        p.write_text(t, encoding='utf-8')
 PY
 
-# libogc2 no longer exposes MAXPATHLEN through WiiMC's legacy include chain.
-# Keep the upstream source untouched except for the build-compatible definition.
 if ! grep -q '#define MAXPATHLEN 1024' source/filebrowser.h; then
     python3 - <<'PY'
 from pathlib import Path
@@ -93,7 +86,6 @@ fi
 
 make PORTLIBS="$PORTLIBS" -j2
 
-# WiiMC-SS's Makefile emits wiimc.dol at the repository root.
 DOL="$UPSTREAM/wiimc.dol"
 test -s "$DOL" || { echo "ERROR: expected DOL not found: $DOL" >&2; find "$UPSTREAM" -maxdepth 3 -name '*.dol' -print >&2; exit 1; }
 
