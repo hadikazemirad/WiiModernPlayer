@@ -68,6 +68,33 @@ for p in (root / 'source' / 'fileop.cpp', root / 'source' / 'filebrowser.cpp'):
     if '#include <strings.h>' not in t:
         t = t.replace('#include <string.h>', '#include <string.h>\n#include <strings.h>', 1)
         p.write_text(t, encoding='utf-8')
+
+# MAXPATHLEN is used by multiple C++ translation units, so define it in the
+# common settings header rather than relying on incidental system headers.
+settings = root / 'source' / 'settings.h'
+t = settings.read_text(encoding='utf-8')
+if '#ifndef MAXPATHLEN' not in t:
+    t = '#ifndef MAXPATHLEN\n#define MAXPATHLEN 1024\n#endif\n\n' + t
+    settings.write_text(t, encoding='utf-8')
+
+# GCC 16's libstdc++ puts std::prev into the global lookup set used by this
+# legacy source. Rename the old rumble timestamp array to avoid the collision.
+input_cpp = root / 'source' / 'input.cpp'
+t = input_cpp.read_text(encoding='utf-8')
+t2 = t.replace('static u64 prev[4];', 'static u64 rumblePrev[4];')
+t2 = t2.replace('prev[i]', 'rumblePrev[i]')
+if t2 == t:
+    raise SystemExit('ERROR: input.cpp rumble array anchor not found')
+input_cpp.write_text(t2, encoding='utf-8')
+
+# libogc2 moved/cleaned up declarations used by this old A/V initialization code.
+ave = root / 'source' / 'mplayer' / 'osdep' / 'ave-rvl.c'
+t = ave.read_text(encoding='utf-8')
+if '#include <string.h>' not in t:
+    t = t.replace('#include <gccore.h>', '#include <gccore.h>\n#include <string.h>', 1)
+if '#include <ogc/lwp_watchdog.h>' not in t:
+    t = t.replace('#include <gccore.h>', '#include <gccore.h>\n#include <ogc/lwp_watchdog.h>', 1)
+ave.write_text(t, encoding='utf-8')
 PY
 
 if ! grep -q '#define MAXPATHLEN 1024' source/filebrowser.h; then
