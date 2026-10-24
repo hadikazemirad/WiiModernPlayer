@@ -6,6 +6,11 @@ META="$ROOT/meta.xml"
 : "${DEVKITPRO:?ERROR: DEVKITPRO is not set}"
 : "${DEVKITPPC:?ERROR: DEVKITPPC is not set}"
 
+# The upstream Makefile uses PORTLIBS to locate FreeType and other portlibs.
+# libogc2 containers do not always export this legacy variable automatically.
+export PORTLIBS="${PORTLIBS:-$DEVKITPRO/portlibs/ppc}"
+export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$PORTLIBS/bin:$DEVKITPRO/portlibs/wii/bin:$PATH"
+
 # Build against the maintained WiiMC-SS fork, pinned to the release used for
 # playback-quality improvements. Do not silently fall back to the older dborth tree.
 UPSTREAM_URL="https://github.com/SuperrSonic/WiiMC-SSLC.git"
@@ -21,7 +26,7 @@ git clone --depth 1 --branch "$UPSTREAM_TAG" "$UPSTREAM_URL" "$UPSTREAM"
 python3 "$ROOT/tools/apply_wiimc_patch.py"
 
 cd "$UPSTREAM"
-make -j2
+make PORTLIBS="$PORTLIBS" -j2
 
 # WiiMC-SS's Makefile emits wiimc.dol at the repository root.
 DOL="$UPSTREAM/wiimc.dol"
