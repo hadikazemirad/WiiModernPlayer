@@ -43,8 +43,9 @@ root = Path('.')
 makefile = root / 'Makefile'
 s = makefile.read_text(encoding='utf-8')
 s2 = s.replace('ENABLE_NTFS                   = 1', 'ENABLE_NTFS                   = 0')
+s2 = s2.replace('ENABLE_EXT2                   = 1', 'ENABLE_EXT2                   = 0')
 if s2 == s:
-    raise SystemExit('ERROR: ENABLE_NTFS anchor not found in upstream Makefile')
+    raise SystemExit('ERROR: optional filesystem anchors not found in upstream Makefile')
 makefile.write_text(s2, encoding='utf-8')
 
 # GCC 15-era devkitPPC rejects the obsolete -mpaired option. -mstring is also
@@ -56,6 +57,16 @@ for p in (root / 'source' / 'mplayer' / 'config.mak', root / 'source' / 'mplayer
         t2 = t.replace('-mpaired', '').replace('-mstring', '')
         if t2 != t:
             p.write_text(t2, encoding='utf-8')
+
+# libogc2's stream API exposes the GEKKO stream error state directly rather than
+# the old helper used by this WiiMC-SS snapshot.
+mplayer = root / 'source' / 'mplayer' / 'mplayer.c'
+t = mplayer.read_text(encoding='utf-8')
+t2 = t.replace('char fileplaying[MAXPATHLEN];', '#ifndef MAXPATHLEN\n#define MAXPATHLEN 1024\n#endif\n\nchar fileplaying[MAXPATHLEN];')
+t2 = t2.replace('end_film_error=stream_error(mpctx->stream);', 'end_film_error=mpctx->stream->error;')
+if t2 == t:
+    raise SystemExit('ERROR: mplayer.c compatibility anchors not found')
+mplayer.write_text(t2, encoding='utf-8')
 PY
 
 # libogc2 no longer exposes MAXPATHLEN through WiiMC's legacy include chain.
