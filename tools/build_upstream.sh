@@ -25,7 +25,28 @@ rm -rf "$UPSTREAM" "$ROOT/dist"
 git clone --depth 1 --branch "$UPSTREAM_TAG" "$UPSTREAM_URL" "$UPSTREAM"
 python3 "$ROOT/tools/apply_wiimc_patch.py"
 
+# WiiMC-SS ships an old generated dependency file which GNU make on the current
+# toolchain parses as a malformed rule. Dependency files are regenerated during
+# compilation, so remove only those generated *.d files before building.
+find "$UPSTREAM/source/mplayer" -type f -name '*.d' -delete
+
 cd "$UPSTREAM"
+# libogc2 no longer exposes MAXPATHLEN through WiiMC's legacy include chain.
+# Keep the upstream source untouched except for the build-compatible definition.
+if ! grep -q '#define MAXPATHLEN 1024' source/filebrowser.h; then
+    python3 - <<'PY'
+from pathlib import Path
+p = Path('source/filebrowser.h')
+s = p.read_text(encoding='utf-8')
+marker = '#define _FILEBROWSER_H_\n'
+if marker not in s:
+    raise SystemExit('ERROR: filebrowser.h include guard anchor changed')
+if '#ifndef MAXPATHLEN' not in s:
+    s = s.replace(marker, marker + '\n#ifndef MAXPATHLEN\n#define MAXPATHLEN 1024\n#endif\n', 1)
+p.write_text(s, encoding='utf-8')
+PY
+fi
+
 make PORTLIBS="$PORTLIBS" -j2
 
 # WiiMC-SS's Makefile emits wiimc.dol at the repository root.
