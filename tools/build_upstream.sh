@@ -72,14 +72,31 @@ film.write_text(t2,encoding='utf-8')
 gui=root/'source/libwiigui/gui_image.cpp'; t=gui.read_text(encoding='utf-8'); t2=t.replace('static u64 prev;','static u64 imagePrev;').replace('diff_usec(prev, now)','diff_usec(imagePrev, now)').replace('prev = now;','imagePrev = now;')
 if t2==t: raise SystemExit('ERROR: gui_image anchor not found')
 gui.write_text(t2,encoding='utf-8')
-# Newlib's OSType list is represented as a pointer-to-pointer in the legacy
-# QuickTime struct, but this diagnostic helper treats it as a packed uint32 list.
 qtx=root/'source/mplayer/loader/qtx/qtxsdk/components.h'; t=qtx.read_text(encoding='utf-8'); t2=t.replace('unsigned int* p=cd->wantedDestinationPixelTypes;','unsigned int* p=(unsigned int*)cd->wantedDestinationPixelTypes;')
-if t2==t: raise SystemExit('ERROR: qtx wantedDestinationPixelTypes anchor not found')
+if t2==t: raise SystemExit('ERROR: qtx anchor not found')
 qtx.write_text(t2,encoding='utf-8')
 trigger=root/'source/libwiigui/gui_trigger.cpp'; t=trigger.read_text(encoding='utf-8'); t2=t.replace('static u64 prev[4];','static u64 triggerPrev[4];').replace('prev[chan]','triggerPrev[chan]')
 if t2==t: raise SystemExit('ERROR: gui_trigger anchor not found')
 trigger.write_text(t2,encoding='utf-8')
+# libogc2/newlib devoptab uses opaque void* file handles.
+ftp=root/'source/utils/ftp_devoptab.c'; t=ftp.read_text(encoding='utf-8'); t2=t
+for old,new in [
+('static off_t __ftp_seek(struct _reent *r, int fd,','static off_t __ftp_seek(struct _reent *r, void *fd,'),
+('static ssize_t __ftp_read(struct _reent *r, int fd,','static ssize_t __ftp_read(struct _reent *r, void *fd,'),
+('static ssize_t __ftp_write(struct _reent *r, int fd,','static ssize_t __ftp_write(struct _reent *r, void *fd,'),
+('static int __ftp_close(struct _reent *r, int fd)','static int __ftp_close(struct _reent *r, void *fd)'),
+('static int __ftp_fstat(struct _reent *r, int fd,','static int __ftp_fstat(struct _reent *r, void *fd,'),
+('st->st_spare1 = 0;','st->st_spare4[0] = 0;'),
+('st->st_spare2 = 0;','st->st_spare4[1] = 0;'),
+('st->st_spare3 = 0;','st->st_spare4[2] = 0;'),
+('if (if_config(myIP, NULL, NULL, true) < 0)','if (if_config(myIP, NULL, NULL, true, 5) < 0)')]:
+    t2=t2.replace(old,new)
+if t2==t: raise SystemExit('ERROR: ftp_devoptab anchors not found')
+ftp.write_text(t2,encoding='utf-8')
+# MPlayer's old swscale calls pass a single plane pointer by address.
+spu=root/'source/mplayer/sub/spudec.c'; t=spu.read_text(encoding='utf-8'); t2=t.replace('sws_scale(ctx,&s1,','sws_scale(ctx,(const uint8_t *const *)&s1,').replace('sws_scale(ctx,&s2,','sws_scale(ctx,(const uint8_t *const *)&s2,')
+if t2==t: raise SystemExit('ERROR: spudec swscale anchors not found')
+spu.write_text(t2,encoding='utf-8')
 PY
 if ! grep -q '#define MAXPATHLEN 1024' source/filebrowser.h; then
 python3 - <<'PY'
