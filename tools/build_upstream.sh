@@ -86,14 +86,19 @@ spu=root/'source/mplayer/sub/spudec.c'; t=spu.read_text(encoding='utf-8'); t2=t.
 if t2==t: raise SystemExit('ERROR: spudec swscale anchors not found')
 spu.write_text(t2,encoding='utf-8')
 sub=root/'source/mplayer/sub/sub.c'; t=sub.read_text(encoding='utf-8'); t2=t.replace('utf8_get_char(&t)','utf8_get_char((const char**)&t)')
-if 'extern int mpctx_get_set_of_sub_size(void);' not in t2:
-    t2=t2.replace('#include "sub.h"','#include "sub.h"\nextern int mpctx_get_set_of_sub_size(void);',1)
+if 'extern int mpctx_get_set_of_sub_size(void);' not in t2: t2=t2.replace('#include "sub.h"','#include "sub.h"\nextern int mpctx_get_set_of_sub_size(void);',1)
 if t2==t: raise SystemExit('ERROR: sub.c anchors not found')
 sub.write_text(t2,encoding='utf-8')
 pngu=root/'source/utils/pngu.c'; t=pngu.read_text(encoding='utf-8')
-if '#include <string.h>' not in t: pgnu=t.replace('#include <stdio.h>','#include <stdio.h>\n#include <string.h>',1)
-else: pgnu=t
-pgnu_path=root/'source/utils/pngu.c'; pgnu_path.write_text(pgnu,encoding='utf-8')
+if '#include <string.h>' not in t: t=t.replace('#include <stdio.h>','#include <stdio.h>\n#include <string.h>',1)
+pngu.write_text(t,encoding='utf-8')
+# libdvdnav collides with newlib's pthread_mutex_t typedef; use a private type name.
+dvd=root/'source/mplayer/libdvdnav/dvdnav_internal.h'; t=dvd.read_text(encoding='utf-8'); t2=t.replace('typedef mutex_t pthread_mutex_t;','typedef mutex_t dvd_mutex_t;').replace('pthread_mutex_t vm_lock;','dvd_mutex_t vm_lock;')
+if t2==t: raise SystemExit('ERROR: dvdnav mutex anchors not found')
+dvd.write_text(t2,encoding='utf-8')
+unzip=root/'source/utils/unzip/unzip.c'; t=unzip.read_text(encoding='utf-8'); t2=t.replace('s->pcrc_32_tab = get_crc_table();','s->pcrc_32_tab = (const uLong*)get_crc_table();')
+if t2==t: raise SystemExit('ERROR: unzip crc anchor not found')
+unzip.write_text(t2,encoding='utf-8')
 PY
 if ! grep -q '#define MAXPATHLEN 1024' source/filebrowser.h; then
 python3 - <<'PY'
