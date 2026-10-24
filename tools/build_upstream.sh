@@ -89,7 +89,6 @@ if '#include <ogc/lwp_watchdog.h>' not in t:
     t = t.replace('#include <gccore.h>', '#include <gccore.h>\n#include <ogc/lwp_watchdog.h>', 1)
 ave.write_text(t, encoding='utf-8')
 
-# GCC 16/libogc2 compatibility in the GX renderer and playlist sorter.
 gx = root / 'source' / 'mplayer' / 'osdep' / 'gx_supp.c'
 t = gx.read_text(encoding='utf-8')
 t2 = t.replace('extern timerFadeBlack;', 'static int timerFadeBlack = 0;')
@@ -107,6 +106,25 @@ if '#include <strings.h>' not in t2:
 if t2 == t:
     raise SystemExit('ERROR: musicplaylist.cpp stricmp anchor not found')
 music.write_text(t2, encoding='utf-8')
+
+# Newlib's iconv prototype uses char**, while this legacy MPlayer code keeps a
+# const char* local. iconv advances the pointer but does not need to modify the
+# pointed-to characters, so cast the local pointer at the API boundary.
+mpmsg = root / 'source' / 'mplayer' / 'mp_msg.c'
+t = mpmsg.read_text(encoding='utf-8')
+t2 = t.replace('iconv(inv_msgiconv, &filename, &filename_len,', 'iconv(inv_msgiconv, (char **)&filename, &filename_len,')
+if t2 == t:
+    raise SystemExit('ERROR: mp_msg.c iconv anchor not found')
+mpmsg.write_text(t2, encoding='utf-8')
+
+# mxml 3.x keeps mxml_node_t opaque; use its public accessor instead of the old
+# direct struct member access used by WiiMC-SS.
+settings_cpp = root / 'source' / 'settings.cpp'
+t = settings_cpp.read_text(encoding='utf-8')
+t2 = t.replace('node->value.element.name', 'mxmlGetElement(node)')
+if t2 == t:
+    raise SystemExit('ERROR: settings.cpp mxml anchor not found')
+settings_cpp.write_text(t2, encoding='utf-8')
 PY
 
 if ! grep -q '#define MAXPATHLEN 1024' source/filebrowser.h; then
