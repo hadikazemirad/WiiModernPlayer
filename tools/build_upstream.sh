@@ -78,25 +78,22 @@ qtx.write_text(t2,encoding='utf-8')
 trigger=root/'source/libwiigui/gui_trigger.cpp'; t=trigger.read_text(encoding='utf-8'); t2=t.replace('static u64 prev[4];','static u64 triggerPrev[4];').replace('prev[chan]','triggerPrev[chan]')
 if t2==t: raise SystemExit('ERROR: gui_trigger anchor not found')
 trigger.write_text(t2,encoding='utf-8')
-# libogc2/newlib devoptab uses opaque void* file handles.
 ftp=root/'source/utils/ftp_devoptab.c'; t=ftp.read_text(encoding='utf-8'); t2=t
-for old,new in [
-('static off_t __ftp_seek(struct _reent *r, int fd,','static off_t __ftp_seek(struct _reent *r, void *fd,'),
-('static ssize_t __ftp_read(struct _reent *r, int fd,','static ssize_t __ftp_read(struct _reent *r, void *fd,'),
-('static ssize_t __ftp_write(struct _reent *r, int fd,','static ssize_t __ftp_write(struct _reent *r, void *fd,'),
-('static int __ftp_close(struct _reent *r, int fd)','static int __ftp_close(struct _reent *r, void *fd)'),
-('static int __ftp_fstat(struct _reent *r, int fd,','static int __ftp_fstat(struct _reent *r, void *fd,'),
-('st->st_spare1 = 0;','st->st_spare4[0] = 0;'),
-('st->st_spare2 = 0;','st->st_spare4[1] = 0;'),
-('st->st_spare3 = 0;','st->st_spare4[2] = 0;'),
-('if (if_config(myIP, NULL, NULL, true) < 0)','if (if_config(myIP, NULL, NULL, true, 5) < 0)')]:
-    t2=t2.replace(old,new)
+for old,new in [('static off_t __ftp_seek(struct _reent *r, int fd,','static off_t __ftp_seek(struct _reent *r, void *fd,'),('static ssize_t __ftp_read(struct _reent *r, int fd,','static ssize_t __ftp_read(struct _reent *r, void *fd,'),('static ssize_t __ftp_write(struct _reent *r, int fd,','static ssize_t __ftp_write(struct _reent *r, void *fd,'),('static int __ftp_close(struct _reent *r, int fd)','static int __ftp_close(struct _reent *r, void *fd)'),('static int __ftp_fstat(struct _reent *r, int fd,','static int __ftp_fstat(struct _reent *r, void *fd,'),('st->st_spare1 = 0;','st->st_spare4[0] = 0;'),('st->st_spare2 = 0;','st->st_spare4[1] = 0;'),('st->st_spare3 = 0;','st->st_spare4[2] = 0;'),('if (if_config(myIP, NULL, NULL, true) < 0)','if (if_config(myIP, NULL, NULL, true, 5) < 0)')]: t2=t2.replace(old,new)
 if t2==t: raise SystemExit('ERROR: ftp_devoptab anchors not found')
 ftp.write_text(t2,encoding='utf-8')
-# MPlayer's old swscale calls pass a single plane pointer by address.
 spu=root/'source/mplayer/sub/spudec.c'; t=spu.read_text(encoding='utf-8'); t2=t.replace('sws_scale(ctx,&s1,','sws_scale(ctx,(const uint8_t *const *)&s1,').replace('sws_scale(ctx,&s2,','sws_scale(ctx,(const uint8_t *const *)&s2,')
 if t2==t: raise SystemExit('ERROR: spudec swscale anchors not found')
 spu.write_text(t2,encoding='utf-8')
+sub=root/'source/mplayer/sub/sub.c'; t=sub.read_text(encoding='utf-8'); t2=t.replace('utf8_get_char(&t)','utf8_get_char((const char**)&t)')
+if 'extern int mpctx_get_set_of_sub_size(void);' not in t2:
+    t2=t2.replace('#include "sub.h"','#include "sub.h"\nextern int mpctx_get_set_of_sub_size(void);',1)
+if t2==t: raise SystemExit('ERROR: sub.c anchors not found')
+sub.write_text(t2,encoding='utf-8')
+pngu=root/'source/utils/pngu.c'; t=pngu.read_text(encoding='utf-8')
+if '#include <string.h>' not in t: pgnu=t.replace('#include <stdio.h>','#include <stdio.h>\n#include <string.h>',1)
+else: pgnu=t
+pgnu_path=root/'source/utils/pngu.c'; pgnu_path.write_text(pgnu,encoding='utf-8')
 PY
 if ! grep -q '#define MAXPATHLEN 1024' source/filebrowser.h; then
 python3 - <<'PY'
