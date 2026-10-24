@@ -12,7 +12,8 @@ for rel in ("source/mplayer/config.mak", "source/mplayer/Makefile"):
         if s2 != s:
             p.write_text(s2, encoding="utf-8")
 
-# Optional NTFS/EXT2 headers are not part of the libogc2 container.
+# Guard optional NTFS/EXT2 headers. The main build wrapper changes the
+# corresponding Makefile switches to 0 immediately before compilation.
 p = UPSTREAM / "source/fileop.cpp"
 s = p.read_text(encoding="utf-8")
 if "#include <ntfs.h>" in s and "#ifdef WANT_NTFS" not in s:
@@ -21,11 +22,11 @@ if "#include <ext2.h>" in s and "#ifdef WANT_EXT2" not in s:
     s = s.replace("#include <ext2.h>", "#ifdef WANT_EXT2\n#include <ext2.h>\n#endif", 1)
 p.write_text(s, encoding="utf-8")
 
+# Keep these Makefile anchors intact for the build wrapper's compatibility
+# step; it will disable the optional libraries after this script runs.
 p = UPSTREAM / "Makefile"
 s = p.read_text(encoding="utf-8")
-s2 = s.replace("ENABLE_NTFS                   = 1", "ENABLE_NTFS                   = 0")
-s2 = s2.replace("ENABLE_EXT2                   = 1", "ENABLE_EXT2                   = 0")
-s2 = s2.replace("\t\t\t\t\t$(CURDIR)/source/utils/ehcmodule.elf.o\n", "")
+s2 = s.replace("\t\t\t\t\t$(CURDIR)/source/utils/ehcmodule.elf.o\n", "")
 if s2 != s:
     p.write_text(s2, encoding="utf-8")
 
