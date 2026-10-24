@@ -72,6 +72,14 @@ film.write_text(t2,encoding='utf-8')
 gui=root/'source/libwiigui/gui_image.cpp'; t=gui.read_text(encoding='utf-8'); t2=t.replace('static u64 prev;','static u64 imagePrev;').replace('diff_usec(prev, now)','diff_usec(imagePrev, now)').replace('prev = now;','imagePrev = now;')
 if t2==t: raise SystemExit('ERROR: gui_image anchor not found')
 gui.write_text(t2,encoding='utf-8')
+# Newlib's OSType list is represented as a pointer-to-pointer in the legacy
+# QuickTime struct, but this diagnostic helper treats it as a packed uint32 list.
+qtx=root/'source/mplayer/loader/qtx/qtxsdk/components.h'; t=qtx.read_text(encoding='utf-8'); t2=t.replace('unsigned int* p=cd->wantedDestinationPixelTypes;','unsigned int* p=(unsigned int*)cd->wantedDestinationPixelTypes;')
+if t2==t: raise SystemExit('ERROR: qtx wantedDestinationPixelTypes anchor not found')
+qtx.write_text(t2,encoding='utf-8')
+trigger=root/'source/libwiigui/gui_trigger.cpp'; t=trigger.read_text(encoding='utf-8'); t2=t.replace('static u64 prev[4];','static u64 triggerPrev[4];').replace('prev[chan]','triggerPrev[chan]')
+if t2==t: raise SystemExit('ERROR: gui_trigger anchor not found')
+trigger.write_text(t2,encoding='utf-8')
 PY
 if ! grep -q '#define MAXPATHLEN 1024' source/filebrowser.h; then
 python3 - <<'PY'
