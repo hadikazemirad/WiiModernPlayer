@@ -73,7 +73,8 @@ jobs:
         run: |
           set -euo pipefail
           export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$DEVKITPRO/portlibs/ppc/bin:$DEVKITPRO/portlibs/wii/bin:$PATH"
-          make -j2
+          set -o pipefail
+          make -j2 2>&1 | tee build.log
       - name: Verify generated source and package
         shell: bash
         run: |
@@ -107,3 +108,13 @@ jobs:
           name: WiiModernMediaPlayer-v${{ env.PROJECT_VERSION }}-Wii
           path: WiiModernMediaPlayer-v${{ env.PROJECT_VERSION }}-Wii.zip
           if-no-files-found: error
+      - name: Upload build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WiiModernMediaPlayer-build-diagnostics-${{ github.run_id }}
+          path: |
+            build.log
+            upstream-wiimc/source/**/*.cpp
+            upstream-wiimc/source/**/*.c
+          if-no-files-found: ignore
