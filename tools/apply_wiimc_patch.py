@@ -15,7 +15,8 @@ for p in (INPUT, VIDEO, WIIMC):
 text = INPUT.read_text(encoding="utf-8")
 required_native = (
     "MP_CMD_DVDNAV_MOUSECLICK", "MP_CMD_DVDNAV_SELECT", "MP_CMD_DVDNAV_MENU",
-    "MP_CMD_DVDNAV_UP", "MP_CMD_DVDNAV_DOWN", "MP_CMD_DVDNAV_LEFT", "MP_CMD_DVDNAV_RIGHT",
+    "MP_CMD_DVDNAV_PREVMENU", "MP_CMD_DVDNAV_UP", "MP_CMD_DVDNAV_DOWN",
+    "MP_CMD_DVDNAV_LEFT", "MP_CMD_DVDNAV_RIGHT",
 )
 for required in required_native:
     if required not in text:
@@ -46,7 +47,7 @@ new = r'''	else
 		if(userInput[0].wpad->ir.valid)
 			wiiUpdatePointer((int)userInput[0].wpad->ir.x, (int)userInput[0].wpad->ir.y);
 
-		/* 2/Y turns the remote into a DVD navigation controller. */
+		/* Hold 2/Y for the explicit V14-style DVD controller layer. */
 		if(dvdModifier)
 		{
 			if(userInput[0].wpad->btns_d & (WPAD_BUTTON_A | WPAD_BUTTON_1) ||
@@ -83,10 +84,10 @@ new = r'''	else
 			!(userInput[0].wpad->btns_h & (WPAD_BUTTON_RIGHT | WPAD_BUTTON_LEFT | WPAD_BUTTON_UP | WPAD_BUTTON_DOWN)) &&
 			!(held & (PAD_BUTTON_RIGHT | PAD_BUTTON_LEFT | PAD_BUTTON_UP | PAD_BUTTON_DOWN)))
 		{
-			/* V14-style Back: return to the DVD menu without swallowing B+direction resize. */
-			wiiDVDNav(MP_CMD_DVDNAV_MENU);
+			/* B is DVD previous-menu/back; 2+B is reserved for the DVD root menu above. */
+			wiiDVDNav(MP_CMD_DVDNAV_PREVMENU);
 		}
-		else if (userInput[0].wpad->btns_h & WPAD_BUTTON_B || held & PAD_TRIGGER_Z)
+		else if(userInput[0].wpad->btns_h & WPAD_BUTTON_B || held & PAD_TRIGGER_Z)
 		{
 			/* Keep WiiMC's native B+direction resize behaviour. */
 			unsigned int delay = (resizeinitial == 1) ? RESIZE_INITIAL_DELAY : RESIZE_DELAY;
@@ -130,8 +131,6 @@ new = r'''	else
 '''
 text = text[:start] + new + text[end + 4:]
 
-# Normal playback: let WiiMC's own videobar/GUI consume A when the pointer is on it;
-# only use A as pause when there is no pointer-driven GUI interaction.
 a_pattern = re.compile(
     r"(?ms)^[ \t]*if\s*\(!drawGui\s*\|\|\s*\(y\s*<\s*360\s*&&.*?^[ \t]*\}\s*(?=\n)")
 a_replacement = "\t\t\tif(!drawGui || !userInput[0].wpad->ir.valid)\n\t\t\t\twiiPause();"
@@ -140,7 +139,6 @@ if a_count != 1:
     raise SystemExit("ERROR: native A/Pause logic not found (expected one WiiMC GUI-gated pause block)")
 INPUT.write_text(text, encoding="utf-8")
 
-# IMPORTANT: do not draw the old experimental WMP bar. WiiMC already owns videobar.
 vt = VIDEO.read_text(encoding="utf-8")
 vt = re.sub(r'^\s*#include\s+"wmp_v14_bar\.h"\s*\n', '', vt, flags=re.MULTILINE)
 vt = re.sub(r'^\s*WMPV14_DrawBar\s*\(\s*\)\s*;\s*\n', '', vt, flags=re.MULTILINE)
@@ -148,9 +146,6 @@ if 'WMPV14_DrawBar();' in vt or 'wmp_v14_bar.h' in vt:
     raise SystemExit("ERROR: experimental custom video bar remains in upstream video.cpp")
 VIDEO.write_text(vt, encoding="utf-8")
 
-# DVD selection fix: when a VOB/IFO inside a DVD folder is selected, normalize it
-# to the DVD root's VIDEO_TS.IFO before the player starts. This prevents the browser
-# from treating the 10-second menu/navigation VOB as an ordinary standalone video.
 wt = WIIMC.read_text(encoding="utf-8")
 if "#include <sys/stat.h>" not in wt:
     first_include = wt.find("#include")
@@ -222,8 +217,6 @@ if old not in wt:
     raise SystemExit("ERROR: DVD LoadMPlayerFile anchor changed")
 wt = wt.replace(old, new, 1)
 
-# Never inherit the user's media-loop preference for a real DVD. DVDNav itself owns
-# navigation/title transitions; MPlayer's generic loop must not restart a title/menu.
 loop_line = '\tif(WiiSettings.autoPlayNextVideo == AUTOPLAY_LOOP) // Loop video setting from mplayer\n\t\twiiSetLoopOn();\n'
 loop_guard = '\tif(WiiSettings.autoPlayNextVideo == AUTOPLAY_LOOP && strncmp(loadedFile, "dvd", 3) != 0) // Loop normal videos only; DVDNav owns DVD transitions\n\t\twiiSetLoopOn();\n'
 if loop_line not in wt:
