@@ -132,8 +132,6 @@ text = text[:start] + new + text[end + 4:]
 
 # Normal playback: let WiiMC's own videobar/GUI consume A when the pointer is on it;
 # only use A as pause when there is no pointer-driven GUI interaction.
-# Match the semantic A/Pause condition, not whitespace or exact line wrapping.
-# Upstream WiiMC has changed indentation/layout across commits while keeping this logic.
 a_pattern = re.compile(
     r"(?ms)^[ \t]*if\s*\(!drawGui\s*\|\|\s*\(y\s*<\s*360\s*&&.*?^[ \t]*\}\s*(?=\n)")
 a_replacement = "\t\t\tif(!drawGui || !userInput[0].wpad->ir.valid)\n\t\t\t\twiiPause();"
@@ -189,7 +187,6 @@ static bool NormalizeDVDComponent(char *path, size_t pathSize)
 	if(strcasecmp(basename, "VIDEO_TS.IFO") == 0)
 		return false;
 
-	/* If the selected component is inside VIDEO_TS, candidate is the DVD_TS dir. */
 	char *last = strrchr(candidate, '/');
 	const char *leaf = last ? last + 1 : candidate;
 	if(strcasecmp(leaf, "VIDEO_TS") == 0)
@@ -198,7 +195,6 @@ static bool NormalizeDVDComponent(char *path, size_t pathSize)
 	}
 	else
 	{
-		/* A component may also sit beside a VIDEO_TS directory in the DVD root. */
 		char ts[1024];
 		snprintf(ts, sizeof(ts), "%s/VIDEO_TS", candidate);
 		struct stat st;
@@ -225,6 +221,14 @@ new = '\tchar ext[7];\n\tGetExt(loadedFile, ext);\n\n\t/* Prefer the DVD root IF
 if old not in wt:
     raise SystemExit("ERROR: DVD LoadMPlayerFile anchor changed")
 wt = wt.replace(old, new, 1)
+
+# Never inherit the user's media-loop preference for a real DVD. DVDNav itself owns
+# navigation/title transitions; MPlayer's generic loop must not restart a title/menu.
+loop_line = '\tif(WiiSettings.autoPlayNextVideo == AUTOPLAY_LOOP) // Loop video setting from mplayer\n\t\twiiSetLoopOn();\n'
+loop_guard = '\tif(WiiSettings.autoPlayNextVideo == AUTOPLAY_LOOP && strncmp(loadedFile, "dvd", 3) != 0) // Loop normal videos only; DVDNav owns DVD transitions\n\t\twiiSetLoopOn();\n'
+if loop_line not in wt:
+    raise SystemExit("ERROR: generic media loop block not found")
+wt = wt.replace(loop_line, loop_guard, 1)
 WIIMC.write_text(wt, encoding="utf-8")
 
 print("PATCH_OK")
