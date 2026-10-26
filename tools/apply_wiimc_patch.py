@@ -5,22 +5,24 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "upstream-wiimc"
 INPUT = SRC / "source" / "input.cpp"
+INPUT_HDR = SRC / "source" / "mplayer" / "input" / "input.h"
 VIDEO = SRC / "source" / "video.cpp"
 WIIMC = SRC / "source" / "wiimc.cpp"
 
-for p in (INPUT, VIDEO, WIIMC):
+for p in (INPUT, INPUT_HDR, VIDEO, WIIMC):
     if not p.exists():
         raise SystemExit(f"ERROR: upstream WiiMC source is missing: {p}")
 
 text = INPUT.read_text(encoding="utf-8")
+header_text = INPUT_HDR.read_text(encoding="utf-8")
 required_native = (
     "MP_CMD_DVDNAV_MOUSECLICK", "MP_CMD_DVDNAV_SELECT", "MP_CMD_DVDNAV_MENU",
     "MP_CMD_DVDNAV_PREVMENU", "MP_CMD_DVDNAV_UP", "MP_CMD_DVDNAV_DOWN",
     "MP_CMD_DVDNAV_LEFT", "MP_CMD_DVDNAV_RIGHT",
 )
 for required in required_native:
-    if required not in text:
-        raise SystemExit("ERROR: expected native DVDNav command missing: " + required)
+    if required not in header_text:
+        raise SystemExit("ERROR: expected native DVDNav command missing from input.h: " + required)
 
 start_marker = (
     "\telse\n"
