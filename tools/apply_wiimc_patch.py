@@ -24,6 +24,27 @@ for required in required_native:
     if required not in header_text:
         raise SystemExit("ERROR: expected native DVDNav command missing from input.h: " + required)
 
+# Playback mode: upstream WiiMC already maps Wiimote 2 to the DVD root menu.
+# Extend that same native DVDNav event to Classic Controller Y and GameCube Y.
+playback_2_pattern = re.compile(
+    r"(?m)^(\s*)else if\(userInput\[0\]\.wpad->btns_d & WPAD_BUTTON_2\)\s*//\s*\|\| down & PAD_TRIGGER_L\)\s*$"
+)
+playback_2_replacement = (
+    r"\1else if(userInput[0].wpad->btns_d & WPAD_BUTTON_2 || "
+    r"userInput[0].wpad->btns_d & WPAD_CLASSIC_BUTTON_Y || down & PAD_BUTTON_Y)"
+    "\n"
+    r"\1{"
+    "\n"
+    r"\1\t/* 2/Y opens the DVD root menu while a DVD is playing. */"
+    "\n"
+    r"\1\twiiDVDNav(MP_CMD_DVDNAV_MENU);"
+    "\n"
+    r"\1}"
+)
+text, playback_2_count = playback_2_pattern.subn(playback_2_replacement, text, count=1)
+if playback_2_count != 1:
+    raise SystemExit("ERROR: native DVD playback 2-button handler not found")
+
 start_marker = (
     "\telse\n"
     "\t{\n"
