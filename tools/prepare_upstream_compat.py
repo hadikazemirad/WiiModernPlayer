@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,9 +22,6 @@ p.write_text(s, encoding="utf-8")
 p = UPSTREAM / "Makefile"
 s = p.read_text(encoding="utf-8")
 s2 = s.replace("\t\t\t\t\t$(CURDIR)/source/utils/ehcmodule.elf.o\n", "")
-# libogc2's current linker script normally provides this absolute exception
-# buffer symbol; define it explicitly as a compatibility fallback for the
-# WiiMC-SS link command.
 if "__ppc_excpt_buf=0x800000d0" not in s2:
     s2 += "\n# libogc2 exception-buffer compatibility\nLDFLAGS += -Wl,--defsym,__ppc_excpt_buf=0x800000d0\n"
 if s2 != s:
@@ -54,12 +50,23 @@ if old_macros not in s:
 s = s.replace(old_macros, new_macros, 1)
 p.write_text(s, encoding="utf-8")
 
-# swscale now takes const plane arrays.
 p = UPSTREAM / "source/mplayer/libmpcodecs/vf_screenshot.c"
 s = p.read_text(encoding="utf-8")
 s2 = s.replace("sws_scale(priv->ctx, mpi->planes,", "sws_scale(priv->ctx, (const uint8_t *const *)mpi->planes,")
 s2 = s2.replace("sws_scale(vf->priv->ctx, src,", "sws_scale(vf->priv->ctx, (const uint8_t *const *)src,")
 if s2 != s:
     p.write_text(s2, encoding="utf-8")
+
+# Wii Modern Media Player input compatibility:
+# Classic Controller Y must have the same DVD-menu command as Wiimote 2.
+p = UPSTREAM / "source/input.cpp"
+s = p.read_text(encoding="utf-8")
+old = '''\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_2)// || down & PAD_TRIGGER_L)\n\t\t{\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_MENU);\n\t\t}'''
+new = '''\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_2 ||\n\t\t\tuserInput[0].wpad->btns_d & WPAD_CLASSIC_BUTTON_Y ||\n\t\t\tdown & PAD_BUTTON_Y)\n\t\t{\n\t\t\t/* 2/Y is the V14-style DVD menu key while a title is playing. */\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_MENU);\n\t\t}'''
+if old not in s:
+    raise SystemExit("ERROR: playback DVD menu key anchor not found")
+if "/* 2/Y is the V14-style DVD menu key while a title is playing. */" not in s:
+    s = s.replace(old, new, 1)
+p.write_text(s, encoding="utf-8")
 
 print("UPSTREAM_COMPAT_OK")
