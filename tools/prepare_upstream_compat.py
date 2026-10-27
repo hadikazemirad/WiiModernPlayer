@@ -57,16 +57,7 @@ s2 = s2.replace("sws_scale(vf->priv->ctx, src,", "sws_scale(vf->priv->ctx, (cons
 if s2 != s:
     p.write_text(s2, encoding="utf-8")
 
-# Wii Modern Media Player input compatibility:
-# Classic Controller Y must have the same DVD-menu command as Wiimote 2.
-p = UPSTREAM / "source/input.cpp"
-s = p.read_text(encoding="utf-8")
-old = '''\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_2)// || down & PAD_TRIGGER_L)\n\t\t{\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_MENU);\n\t\t}'''
-new = '''\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_2 ||\n\t\t\tuserInput[0].wpad->btns_d & WPAD_CLASSIC_BUTTON_Y ||\n\t\t\tdown & PAD_BUTTON_Y)\n\t\t{\n\t\t\t/* 2/Y is the V14-style DVD menu key while a title is playing. */\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_MENU);\n\t\t}'''
-if old not in s:
-    raise SystemExit("ERROR: playback DVD menu key anchor not found")
-if "/* 2/Y is the V14-style DVD menu key while a title is playing. */" not in s:
-    s = s.replace(old, new, 1)
-p.write_text(s, encoding="utf-8")
-
+# Input customization is performed once by apply_wiimc_patch.py before this
+# compatibility pass. Do not patch source/input.cpp again here: doing so makes
+# the second pass fail because the original upstream anchor is already gone.
 print("UPSTREAM_COMPAT_OK")
