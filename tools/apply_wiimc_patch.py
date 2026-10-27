@@ -11,9 +11,15 @@ text=INPUT.read_text(); header=HDR.read_text()
 for name in ('MP_CMD_DVDNAV_MOUSECLICK','MP_CMD_DVDNAV_SELECT','MP_CMD_DVDNAV_MENU','MP_CMD_DVDNAV_PREVMENU','MP_CMD_DVDNAV_UP','MP_CMD_DVDNAV_DOWN','MP_CMD_DVDNAV_LEFT','MP_CMD_DVDNAV_RIGHT'):
     if name not in header: raise SystemExit('ERROR: missing native DVDNav command: '+name)
 
-# Playback: Wiimote 2 + Classic Controller Y + GameCube Y open DVD root menu.
+# 2/Y opens the DVD root menu only while an actual DVD title is playing.
+# Keep Y as the normal volume-up control for ordinary media.
+old_volume='''\t\telse if(userInput[0].wpad->btns_h & WPAD_BUTTON_PLUS || held & PAD_BUTTON_Y ||\n\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_Y)'''
+new_volume='''\t\telse if(userInput[0].wpad->btns_h & WPAD_BUTTON_PLUS ||\n\t\t\t((held & PAD_BUTTON_Y || userInput[0].cpad.data.down & CTR_BUTTON_Y) && !wiiPlayingDVD()))'''
+if old_volume not in text: raise SystemExit('ERROR: volume/Y anchor not found')
+text=text.replace(old_volume,new_volume,1)
+
 old='''\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_2)// || down & PAD_TRIGGER_L)\n\t\t{\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_MENU);\n\t\t}'''
-new='''\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_2 ||\n\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_Y || down & PAD_BUTTON_Y)\n\t\t{\n\t\t\t/* 2/Y opens the DVD root menu while a DVD is playing. */\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_MENU);\n\t\t}'''
+new='''\t\telse if(wiiPlayingDVD() &&\n\t\t\t(userInput[0].wpad->btns_d & WPAD_BUTTON_2 ||\n\t\t\t userInput[0].cpad.data.down & CTR_BUTTON_Y || down & PAD_BUTTON_Y))\n\t\t{\n\t\t\t/* 2/Y opens the DVD root menu while a DVD is playing. */\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_MENU);\n\t\t}'''
 if old not in text: raise SystemExit('ERROR: playback DVD menu key anchor not found')
 text=text.replace(old,new,1)
 
@@ -25,7 +31,7 @@ end=text.find('\n\t}\n\n\tif(volumeUpdated)',m.start())
 if end<0: raise SystemExit('ERROR: DVD menu input block end not found')
 block='''\n\telse\n\t{\n\t\t/* DVD menu controls: IR pointer first, with 2/Y modifier mode. */\n\t\tconst bool dvdModifier =\n\t\t\t(userInput[0].wpad->btns_h & WPAD_BUTTON_2) != 0 ||\n\t\t\t(userInput[0].cpad.data.down & CTR_BUTTON_Y) != 0 ||\n\t\t\t(held & PAD_BUTTON_Y) != 0;\n\n\t\tif(userInput[0].wpad->ir.valid)\n\t\t\twiiUpdatePointer((int)userInput[0].wpad->ir.x, (int)userInput[0].wpad->ir.y);\n\n\t\tif(dvdModifier)\n\t\t{\n\t\t\tif(userInput[0].wpad->btns_d & (WPAD_BUTTON_A | WPAD_BUTTON_1) ||\n\t\t\t\tdown & (PAD_BUTTON_A | PAD_BUTTON_X) ||\n\t\t\t\tuserInput[0].cpad.data.down & (CTR_BUTTON_A | CTR_BUTTON_X))\n\t\t\t\twiiDVDNav(MP_CMD_DVDNAV_SELECT);\n\t\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_B || down & PAD_BUTTON_B ||\n\t\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_B)\n\t\t\t\twiiDVDNav(MP_CMD_DVDNAV_MENU);\n\t\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_UP || down & PAD_BUTTON_UP ||\n\t\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_UP)\n\t\t\t\twiiDVDNav(MP_CMD_DVDNAV_UP);\n\t\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_DOWN || down & PAD_BUTTON_DOWN ||\n\t\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_DOWN)\n\t\t\t\twiiDVDNav(MP_CMD_DVDNAV_DOWN);\n\t\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_RIGHT || down & PAD_BUTTON_RIGHT ||\n\t\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_RIGHT)\n\t\t\t\twiiDVDNav(MP_CMD_DVDNAV_RIGHT);\n\t\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_LEFT || down & PAD_BUTTON_LEFT ||\n\t\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_LEFT)\n\t\t\t\twiiDVDNav(MP_CMD_DVDNAV_LEFT);\n\t\t}\n\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_A || down & PAD_BUTTON_A ||\n\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_A)\n\t\t{\n\t\t\tif(userInput[0].wpad->ir.valid)\n\t\t\t\twiiDVDNav(MP_CMD_DVDNAV_MOUSECLICK);\n\t\t\telse\n\t\t\t\twiiDVDNav(MP_CMD_DVDNAV_SELECT);\n\t\t}\n\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_B || down & PAD_BUTTON_B ||\n\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_B)\n\t\t{\n\t\t\t/* B = previous DVD menu. */\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_PREVMENU);\n\t\t}\n\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_UP || down & PAD_BUTTON_UP ||\n\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_UP)\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_UP);\n\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_DOWN || down & PAD_BUTTON_DOWN ||\n\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_DOWN)\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_DOWN);\n\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_RIGHT || down & PAD_BUTTON_RIGHT ||\n\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_RIGHT)\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_RIGHT);\n\t\telse if(userInput[0].wpad->btns_d & WPAD_BUTTON_LEFT || down & PAD_BUTTON_LEFT ||\n\t\t\tuserInput[0].cpad.data.down & CTR_BUTTON_LEFT)\n\t\t\twiiDVDNav(MP_CMD_DVDNAV_LEFT);\n\t}'''
 text=text[:m.start()]+block+text[end+3:]
-# Avoid accidental pause while IR pointer is used for DVD selection.
+# A on the IR pointer must not fall through to pause while a DVD menu is active.
 pause_pattern=re.compile(r'\t\t\tif\(!drawGui \|\| \(y < 360 &&.*?\n\t\t\t\{\n\t\t\t\twiiPause\(\);\n\t\t\t\}',re.S)
 pause_replacement='\t\t\tif(!drawGui || !userInput[0].wpad->ir.valid)\n\t\t\t{\n\t\t\t\twiiPause();\n\t\t\t}'
 text,pause_count=pause_pattern.subn(pause_replacement,text,count=1)
