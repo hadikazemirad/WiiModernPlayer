@@ -37,7 +37,7 @@ jobs:
           grep -Fq 'wiiPlayingDVD()' tools/apply_wiimc_patch.py
           grep -Fq 'WPAD_BUTTON_2' tools/apply_wiimc_patch.py
           grep -Fq 'CTR_BUTTON_Y' tools/apply_wiimc_patch.py
-          grep -Fq 'DVDNAV highlight calculation' tools/apply_wiimc_patch.py
+          grep -Fq 'DVDNav highlight-area/palette calculation' tools/apply_wiimc_patch.py
           grep -Fq 'source/mplayer/stream/stream_dvdnav.c' tools/apply_wiimc_patch.py
           grep -Fq 'python3 "$ROOT/tools/apply_wiimc_patch.py"' tools/build_upstream.sh
           grep -Fq 'prepare_upstream_compat.py' tools/build_upstream.sh
