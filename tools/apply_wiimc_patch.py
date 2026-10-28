@@ -44,6 +44,22 @@ vt=re.sub(r'^\s*WMPV14_DrawBar\(\);\s*\n','',vt,flags=re.M)
 if 'WMPV14_DrawBar();' in vt or 'wmp_v14_bar.h' in vt: raise SystemExit('ERROR: experimental bar remains')
 VIDEO.write_text(vt)
 
+# WiiMC-SS upstream deliberately disables DVD button highlights on GEKKO/Wii.
+# Restore the same DVDNav highlight-area/palette calculation used by other targets.
+DVDNAV=SRC/'source/mplayer/stream/stream_dvdnav.c'
+if not DVDNAV.exists(): raise SystemExit('ERROR: missing upstream DVDNav source')
+dt=DVDNAV.read_text()
+disabled=re.compile(r'#ifdef GEKKO\s*\n\s*// always hide button highlight\s*\n\s*hlev->sx = hlev->ex = 0;\s*\n\s*hlev->sy = hlev->ey = 0;\s*\n\s*hlev->palette = hlev->buttonN = 0;\s*\n#else\s*\n(.*?)\n#endif',re.S)
+dt2,n=disabled.subn(lambda m:m.group(1),dt,count=1)
+if n != 1:
+    if 'always hide button highlight' in dt:
+        raise SystemExit('ERROR: DVDNav highlight-disable block changed; refusing unsafe patch')
+    # Idempotency: the enabled calculation should already be present.
+    if 'hlev->sx = FFMIN (btni->x_start, btni->x_end);' not in dt:
+        raise SystemExit('ERROR: DVDNav highlight calculation not found')
+else:
+    DVDNAV.write_text(dt2)
+
 wt=WIIMC.read_text()
 if '#include <sys/stat.h>' not in wt:
     pos=wt.find('#include')
