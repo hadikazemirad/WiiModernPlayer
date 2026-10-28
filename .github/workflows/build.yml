@@ -37,6 +37,8 @@ jobs:
           grep -Fq 'wiiPlayingDVD()' tools/apply_wiimc_patch.py
           grep -Fq 'WPAD_BUTTON_2' tools/apply_wiimc_patch.py
           grep -Fq 'CTR_BUTTON_Y' tools/apply_wiimc_patch.py
+          grep -Fq 'DVDNAV highlight calculation' tools/apply_wiimc_patch.py
+          grep -Fq 'source/mplayer/stream/stream_dvdnav.c' tools/apply_wiimc_patch.py
           grep -Fq 'python3 "$ROOT/tools/apply_wiimc_patch.py"' tools/build_upstream.sh
           grep -Fq 'prepare_upstream_compat.py' tools/build_upstream.sh
           PROJECT_VERSION="$(sed -n 's:.*<version>\([^<]*\)</version>.*:\1:p' meta.xml | head -n1)"
@@ -102,6 +104,9 @@ jobs:
           grep -Fq 'wiiPlayingDVD()' upstream-wiimc/source/input.cpp
           grep -Fq 'WPAD_BUTTON_2' upstream-wiimc/source/input.cpp
           grep -Fq 'CTR_BUTTON_Y' upstream-wiimc/source/input.cpp
+          grep -Fq 'hlev->sx = FFMIN (btni->x_start, btni->x_end);' upstream-wiimc/source/mplayer/stream/stream_dvdnav.c
+          grep -Fq 'hlev->palette = (btni->btn_coln == 0) ? 0 :' upstream-wiimc/source/mplayer/stream/stream_dvdnav.c
+          ! grep -Fq 'always hide button highlight' upstream-wiimc/source/mplayer/stream/stream_dvdnav.c
           grep -Fq 'if(filename && strncmp(filename, "dvd", 3) == 0)' upstream-wiimc/source/mplayer/mplayer.c
           DIST=dist/apps/WiiModernMediaPlayer
           test -s "$DIST/boot.dol"
