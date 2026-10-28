@@ -33,6 +33,10 @@ jobs:
           grep -Fq '<no_ios_reload />' meta.xml
           grep -Fq 'NormalizeDVDComponent' tools/apply_wiimc_patch.py
           grep -Fq 'MP_CMD_DVDNAV_MOUSECLICK' tools/apply_wiimc_patch.py
+          grep -Fq 'MP_CMD_DVDNAV_MENU' tools/apply_wiimc_patch.py
+          grep -Fq 'wiiPlayingDVD()' tools/apply_wiimc_patch.py
+          grep -Fq 'WPAD_BUTTON_2' tools/apply_wiimc_patch.py
+          grep -Fq 'CTR_BUTTON_Y' tools/apply_wiimc_patch.py
           grep -Fq 'python3 "$ROOT/tools/apply_wiimc_patch.py"' tools/build_upstream.sh
           grep -Fq 'prepare_upstream_compat.py' tools/build_upstream.sh
           PROJECT_VERSION="$(sed -n 's:.*<version>\([^<]*\)</version>.*:\1:p' meta.xml | head -n1)"
@@ -76,7 +80,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$DEVKITPRO/portlibs/ppc/bin:$DEVKITPRO/portlibs/wii/bin:$PATH"
+          export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$DEVKITPRO/portlibs/ppc/bin:$PATH"
           set -o pipefail
           make -j2 2>&1 | tee build.log
       - name: Verify generated source and package
@@ -89,10 +93,15 @@ jobs:
           ! grep -Fq 'WMPV14_HandleClick' upstream-wiimc/source/input.cpp
           grep -Fq 'MP_CMD_DVDNAV_MOUSECLICK' upstream-wiimc/source/input.cpp
           grep -Fq 'MP_CMD_DVDNAV_SELECT' upstream-wiimc/source/input.cpp
+          grep -Fq 'MP_CMD_DVDNAV_MENU' upstream-wiimc/source/input.cpp
+          grep -Fq 'MP_CMD_DVDNAV_PREVMENU' upstream-wiimc/source/input.cpp
           grep -Fq 'MP_CMD_DVDNAV_UP' upstream-wiimc/source/input.cpp
           grep -Fq 'MP_CMD_DVDNAV_DOWN' upstream-wiimc/source/input.cpp
           grep -Fq 'MP_CMD_DVDNAV_LEFT' upstream-wiimc/source/input.cpp
           grep -Fq 'MP_CMD_DVDNAV_RIGHT' upstream-wiimc/source/input.cpp
+          grep -Fq 'wiiPlayingDVD()' upstream-wiimc/source/input.cpp
+          grep -Fq 'WPAD_BUTTON_2' upstream-wiimc/source/input.cpp
+          grep -Fq 'CTR_BUTTON_Y' upstream-wiimc/source/input.cpp
           grep -Fq 'if(filename && strncmp(filename, "dvd", 3) == 0)' upstream-wiimc/source/mplayer/mplayer.c
           DIST=dist/apps/WiiModernMediaPlayer
           test -s "$DIST/boot.dol"
