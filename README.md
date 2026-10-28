@@ -25,3 +25,5 @@ Output: `dist/apps/WiiModernMediaPlayer/`.
 ## Important
 
 A successful GitHub Actions build verifies compilation and package generation. Actual optical-DVD menu behavior, pointer selection, and controller behavior still require testing on a physical Wii with a DVD.
+
+<!-- CI verification follows the generated DVDNav source, not only the patch script. -->
