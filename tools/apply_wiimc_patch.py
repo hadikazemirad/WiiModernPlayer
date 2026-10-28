@@ -57,8 +57,20 @@ if n != 1:
     # Idempotency: the enabled calculation should already be present.
     if 'hlev->sx = FFMIN (btni->x_start, btni->x_end);' not in dt:
         raise SystemExit('ERROR: DVDNav highlight calculation not found')
-else:
-    DVDNAV.write_text(dt2)
+    dt2 = dt
+# Clear the previous rectangle/palette before looking up the current button.
+# If DVDNav reports a stale/out-of-range button, do not leave the old highlight on screen.
+reset = '''  hlev->display = display_mode; /* show */
+  hlev->sx = hlev->ex = 0;
+  hlev->sy = hlev->ey = 0;
+  hlev->palette = 0;
+'''
+if reset not in dt2:
+    marker = '  hlev->display = display_mode; /* show */\n'
+    if dt2.count(marker) != 1:
+        raise SystemExit('ERROR: DVDNav highlight reset anchor missing/ambiguous')
+    dt2 = dt2.replace(marker, reset, 1)
+DVDNAV.write_text(dt2)
 
 wt=WIIMC.read_text()
 if '#include <sys/stat.h>' not in wt:
