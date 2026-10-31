@@ -14,6 +14,7 @@ required = (
     "MP_CMD_DVDNAV_MOUSECLICK",
     "MP_CMD_DVDNAV_SELECT",
     "MP_CMD_DVDNAV_MENU",
+    "MP_CMD_DVDNAV_PREVMENU",
     "MP_CMD_DVDNAV_UP",
     "MP_CMD_DVDNAV_DOWN",
     "MP_CMD_DVDNAV_LEFT",
@@ -30,6 +31,11 @@ new = '''\telse\n\t{\n\t\tif(userInput[0].wpad->ir.valid)\n\t\t\twiiUpdatePointe
 if old not in text:
     raise SystemExit("ERROR: expected upstream DVD menu block not found")
 text = text.replace(old, new, 1)
+# Button 2 returns to the previous DVD menu level (Part -> Title -> Root).
+text = text.replace(
+    "wiiDVDNav(MP_CMD_DVDNAV_MENU);",
+    "wiiDVDNav(MP_CMD_DVDNAV_PREVMENU);",
+)
 INPUT.write_text(text, encoding="utf-8")
 
 # Do not add a second/custom video bar. The native WiiMC video GUI remains the sole bar.
@@ -37,4 +43,4 @@ video = VIDEO.read_text(encoding="utf-8")
 if "WMPV14_DrawBar" in video or "wmp_v14_bar.h" in video:
     raise SystemExit("ERROR: experimental custom video bar is still present")
 
-print("PATCH_OK: native WiiMC DVDNav + pointer + D-pad + 2/menu")
+print("PATCH_OK: native WiiMC DVDNav + pointer + D-pad + 2/previous-menu")
