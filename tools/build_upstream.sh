@@ -5,7 +5,7 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 META="$ROOT/meta.xml"
 UPSTREAM="$ROOT/upstream-wiimc"
 DIST="$ROOT/dist/apps/WiiModernMediaPlayer"
-EXPECTED_VERSION="1.7.0"
+EXPECTED_VERSION="1.7.1"
 # Pin the exact WiiMC source used and validated by this project.
 UPSTREAM_COMMIT="fae733f1ee51db8f8c9e3560cdb8b65835174f00"
 
