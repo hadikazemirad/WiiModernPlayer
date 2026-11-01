@@ -6,8 +6,9 @@ SRC = ROOT / "upstream-wiimc"
 INPUT = SRC / "source" / "input.cpp"
 INPUT_H = SRC / "source" / "mplayer" / "input" / "input.h"
 VIDEO = SRC / "source" / "video.cpp"
+FREETYPE = SRC / "source" / "utils" / "FreeTypeGX.cpp"
 
-if not INPUT.exists() or not INPUT_H.exists() or not VIDEO.exists():
+if not INPUT.exists() or not INPUT_H.exists() or not VIDEO.exists() or not FREETYPE.exists():
     raise SystemExit("ERROR: upstream WiiMC sources are missing")
 
 text = INPUT.read_text(encoding="utf-8")
@@ -44,8 +45,16 @@ if text.count("wiiDVDNav(MP_CMD_DVDNAV_PREVMENU);") != 1:
 
 INPUT.write_text(text, encoding="utf-8")
 
+freetype = FREETYPE.read_text(encoding="utf-8")
+old_offset = "void FreeTypeGX::getOffset(wchar_t const *text, ftgxDataOffset* offset)\n{\n\tthis->getOffset(text, offset);\n}"
+new_offset = "void FreeTypeGX::getOffset(wchar_t const *text, ftgxDataOffset* offset)\n{\n\tthis->getOffset((wchar_t *)text, offset);\n}"
+if freetype.count(old_offset) != 1:
+    raise SystemExit("ERROR: expected FreeTypeGX recursive const-overload not found exactly once")
+freetype = freetype.replace(old_offset, new_offset, 1)
+FREETYPE.write_text(freetype, encoding="utf-8")
+
 video = VIDEO.read_text(encoding="utf-8")
 if "WMPV14_DrawBar" in video or "wmp_v14_bar.h" in video:
     raise SystemExit("ERROR: experimental custom video bar is still present")
 
-print("PATCH_OK: DVDNav pointer + A + Wiimote/GC/Classic D-pad + 2/Y previous menu")
+print("PATCH_OK: DVDNav controller navigation + FreeTypeGX recursion fix")
