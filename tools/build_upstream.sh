@@ -6,6 +6,8 @@ META="$ROOT/meta.xml"
 UPSTREAM="$ROOT/upstream-wiimc"
 DIST="$ROOT/dist/apps/WiiModernMediaPlayer"
 EXPECTED_VERSION="1.7.0"
+# Pin the exact WiiMC source used and validated by this project.
+UPSTREAM_COMMIT="fae733f1ee51db8f8c9e3560cdb8b65835174f00"
 
 version="$(sed -n 's:.*<version>\([^<]*\)</version>.*:\1:p' "$META" | head -n1)"
 test "$version" = "$EXPECTED_VERSION" || {
@@ -20,7 +22,11 @@ test -f "$DEVKITPRO/libogc2/wii_rules" || {
 }
 
 rm -rf "$UPSTREAM" "$ROOT/dist"
-git clone --depth 1 https://github.com/dborth/wiimc.git "$UPSTREAM"
+mkdir -p "$UPSTREAM"
+git -C "$UPSTREAM" init -q
+git -C "$UPSTREAM" remote add origin https://github.com/dborth/wiimc.git
+git -C "$UPSTREAM" fetch --depth 1 origin "$UPSTREAM_COMMIT"
+git -C "$UPSTREAM" checkout --detach FETCH_HEAD
 python3 "$ROOT/tools/apply_wiimc_patch.py"
 
 cd "$UPSTREAM"
@@ -33,7 +39,7 @@ test -s "$DOL" || {
 
 # Reject a truncated/empty executable before it reaches the Wii SD card.
 python3 - "$DOL" <<'PY'
-import os, struct, sys
+import struct, sys
 p = sys.argv[1]
 b = open(p, 'rb').read()
 if len(b) < 0x100:
@@ -57,4 +63,4 @@ cp "$ROOT/meta.xml" "$DIST/meta.xml"
 cp "$ROOT/icon.png" "$DIST/icon.png"
 
 test -s "$DIST/boot.dol" && test -s "$DIST/meta.xml" && test -s "$DIST/icon.png"
-printf '%s\n' "Built $DIST/boot.dol"
+printf '%s\n' "Built $DIST/boot.dol from WiiMC $UPSTREAM_COMMIT"
