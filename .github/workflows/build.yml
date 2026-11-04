@@ -90,7 +90,7 @@ jobs:
           print(f"VALID DOL: {len(b)} bytes, {len(pairs)} sections, payload end {max_end}")
           PY
 
-          PROJECT_VERSION="$(sed -n 's:.*<version>\([^<]*\)</version>.*:\1:p' meta.xml | head -n1)"
+          PROJECT_VERSION="$(python3 -c 'import re; s=open("meta.xml", encoding="utf-8").read(); m=re.search(r"<version>([^<]+)</version>", s); print(m.group(1) if m else "")')"
           BUILT_VERSION="$(python3 -c 'import re,sys; s=open(sys.argv[1], encoding="utf-8").read(); m=re.search(r"<version>([^<]+)</version>", s); print(m.group(1) if m else "")' "$DIST/meta.xml")"
           test "$BUILT_VERSION" = "$PROJECT_VERSION"
 
