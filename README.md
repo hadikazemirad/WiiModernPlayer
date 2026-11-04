@@ -5,9 +5,9 @@ This project builds WiiMC from a pinned upstream source and applies a small, rep
 ## Current implementation
 - Uses WiiMC's native DVDNav playback and DVD menu engine.
 - During normal DVD playback, Wiimote 2 opens the DVD menu.
-- While a DVD menu is active, Wiimote 2, GameCube Y, or Classic Controller Y sends MP_CMD_DVDNAV_PREVMENU.
+- While a DVD menu is active, Wiimote 2, GameCube Y, or 3DS Y sends MP_CMD_DVDNAV_PREVMENU.
 - Wiimote IR pointer movement is retained; A uses DVDNav mouse-click when the pointer is valid and DVDNav select otherwise.
-- DVD-menu D-pad navigation is supported for Wiimote, GameCube controller, and Classic Controller. B plus directions retains WiiMC's zoom behavior.
+- DVD-menu D-pad navigation is supported for Wiimote, GameCube controller, and 3DS input adapter. B plus directions retains WiiMC's zoom behavior.
 - Fixes an upstream FreeTypeGX const-overload that recursively called itself instead of the non-const implementation.
 - The native WiiMC video control bar is retained. The experimental custom WiiMC+ V14 overlay is not integrated.
 - The home screen and overall interface are still the upstream WiiMC interface; a fully redesigned modern media-center UI is not yet implemented.
