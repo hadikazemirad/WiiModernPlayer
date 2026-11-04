@@ -9,7 +9,7 @@ EXPECTED_VERSION="1.7.1"
 # Pin the exact WiiMC source used and validated by this project.
 UPSTREAM_COMMIT="fae733f1ee51db8f8c9e3560cdb8b65835174f00"
 
-version="$(sed -n 's:.*<version>\([^<]*\)</version>.*:\1:p' "$META" | head -n1)"
+version="$(python3 -c 'import re,sys; s=open(sys.argv[1], encoding="utf-8").read(); m=re.search(r"<version>([^<]+)</version>", s); print(m.group(1) if m else "")' "$META")"
 test "$version" = "$EXPECTED_VERSION" || {
     echo "ERROR: expected version $EXPECTED_VERSION, got $version" >&2
     exit 1
